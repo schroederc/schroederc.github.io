@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -43,7 +42,7 @@ func (h ContextHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Printf("%s: %s [%s]: %s", r.Method, r.URL.Path, time.Since(start), err)
 }
 
-func registerHandlers(router *httprouter.Router, keep TiddlyServer, username, recipe string) {
+func registerHandlers(router *httprouter.Router, keep *TiddlyKeep, username, recipe string) {
 	// TiddlyWiki index.html
 	router.Handler(http.MethodGet, "/", ContextHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request, p httprouter.Params) error {
 		w.Header().Set("Content-Type", "text/html")
@@ -99,27 +98,49 @@ func registerHandlers(router *httprouter.Router, keep TiddlyServer, username, re
 	router.Handler(http.MethodGet, "/bags/:bag/tiddlers/*tiddler", ContextHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request, p httprouter.Params) error {
 		bag := p.ByName("bag")
 		title := strings.TrimPrefix(r.URL.Path, fmt.Sprintf("/bags/%s/tiddlers/", bag))
-		t, err := keep.GetTiddler(ctx, TiddlerRef{Title: title, Bag: bag}, AlwaysIncludeText)
+		ref := TiddlerRef{Title: title, Bag: bag}
+		etag, err := constructETag(ctx, keep, &ref)
 		if err != nil {
 			return err
 		}
+		// TODO(schroederc): remove etag redundancy
+		if check := r.Header.Get("If-None-Match"); check == etag {
+			w.WriteHeader(http.StatusNotModified)
+			return nil
+		}
+		t, err := keep.GetTiddler(ctx, ref, AlwaysIncludeText)
+		if err != nil {
+			return err
+		}
+		w.Header().Set("Etag", etag)
 		w.Header().Set("Content-Type", "application/json")
 		return json.NewEncoder(w).Encode(t)
 	}))
 	router.Handler(http.MethodGet, "/recipes/:recipe/tiddlers/*tiddler", ContextHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request, p httprouter.Params) error {
 		recipe := p.ByName("recipe")
 		title := strings.TrimPrefix(r.URL.Path, fmt.Sprintf("/recipes/%s/tiddlers/", recipe))
-		t, err := keep.GetTiddler(ctx, TiddlerRef{Title: title, Recipe: recipe}, AlwaysIncludeText)
+		ref := TiddlerRef{Title: title, Recipe: recipe}
+		etag, err := constructETag(ctx, keep, &ref)
+		if err != nil {
+			return err
+		}
+		// TODO(schroederc): remove etag redundancy
+		if check := r.Header.Get("If-None-Match"); check == etag {
+			w.WriteHeader(http.StatusNotModified)
+			return nil
+		}
+		t, err := keep.GetTiddler(ctx, ref, AlwaysIncludeText)
 		if err != nil {
 			return err
 		}
 		t.Recipe = recipe
+		w.Header().Set("Etag", etag)
 		w.Header().Set("Content-Type", "application/json")
 		return json.NewEncoder(w).Encode(t)
 	}))
 
 	// Put tiddler into recipe
-	router.Handler(http.MethodPut, "/recipes/:recipe/*tiddler", ContextHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request, p httprouter.Params) error {
+	router.Handler(http.MethodPut, "/recipes/:recipe/tiddlers/*tiddler", ContextHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request, p httprouter.Params) error {
 		recipe := p.ByName("recipe")
 		tiddler := strings.TrimPrefix(r.URL.Path, fmt.Sprintf("/recipes/%s/tiddlers/", recipe))
 		data, err := ioutil.ReadAll(r.Body)
@@ -138,8 +159,10 @@ func registerHandlers(router *httprouter.Router, keep TiddlyServer, username, re
 			return err
 		}
 
-		// TODO(schroederc): support etags better
-		etag := fmt.Sprintf("\"%s/%s/1:%x\"", t.Bag, url.QueryEscape(t.Title), md5.Sum(data))
+		etag, err := constructETag(ctx, keep, &t.TiddlerRef)
+		if err != nil {
+			return err
+		}
 		w.Header().Set("Etag", etag)
 		return nil
 	}))
@@ -150,4 +173,11 @@ func registerHandlers(router *httprouter.Router, keep TiddlyServer, username, re
 		tiddler := strings.TrimPrefix(r.URL.Path, fmt.Sprintf("/bags/%s/tiddlers/", bag))
 		return keep.DeleteTiddler(ctx, TiddlerRef{Title: tiddler, Bag: bag})
 	}))
+}
+
+func constructETag(ctx context.Context, keep *TiddlyKeep, ref *TiddlerRef) (string, error) {
+	if err := keep.ResolveRef(ctx, ref, false); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("\"%s/%s/%d:%s\"", ref.Bag, url.QueryEscape(ref.Title), ref.Revision.Unix(), ref.Ref.String()), nil
 }

@@ -242,17 +242,26 @@ func updateTags(ctx context.Context, c *client.Client, ref blob.Ref, existing, w
 	return nil
 }
 
-func (r *TiddlerRef) resolveRef(ctx context.Context, k *TiddlyKeep, createMissing bool) (blob.Ref, error) {
+// ResolveRef fully resolves a TiddlerRef, creating a missing Tiddler if requested.
+func (k *TiddlyKeep) ResolveRef(ctx context.Context, r *TiddlerRef, createMissing bool) error {
 	if r.Ref.Valid() && r.TextRef.Valid() && r.MetaRef.Valid() {
-		return r.Ref, nil
+		return nil
 	}
 
 	ref, d, err := k.getTiddlerPermanode(ctx, *r, createMissing)
 	if err != nil {
-		return ref, err
+		return err
 	}
 	*r = constructTiddlerRef(ref, d)
-	return r.Ref, err
+	return err
+}
+
+// TODO remove
+func (r *TiddlerRef) resolveRef(ctx context.Context, k *TiddlyKeep, createMissing bool) (blob.Ref, error) {
+	if err := k.ResolveRef(ctx, r, createMissing); err != nil {
+		return blob.Ref{}, err
+	}
+	return r.Ref, nil
 }
 
 // GenerateIndex implements part of the TiddlyServer interface.
