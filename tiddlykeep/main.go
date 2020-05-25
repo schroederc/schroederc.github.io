@@ -23,7 +23,7 @@ import (
 // TODO(schroederc): initialize store with empty TiddlyWiki
 const (
 	emptyHTML       = "https://tiddlywiki.com/empty.html"
-	pluginLibrary   = "https://tiddlywiki.com/library/v5.1.17/recipes/library/tiddlers/"
+	pluginLibrary   = "https://tiddlywiki.com/library/v5.1.22/recipes/library/tiddlers/"
 	tiddlyWebPlugin = "$:/plugins/tiddlywiki/tiddlyweb" // needs to be double URL-encoded
 )
 
