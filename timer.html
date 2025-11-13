@@ -1,0 +1,63 @@
+<html>
+  <head>
+    <script type="text/javascript">
+window.onload = function () {
+  var seconds = 0; 
+  var tens = 0;
+  var minutes = 0;
+  var appendTens = document.getElementById("tens")
+  var appendSeconds = document.getElementById("seconds")
+  var appendMinutes = document.getElementById("minutes")
+  var buttonStart = document.getElementById('button-start');
+  var buttonStop = document.getElementById('button-stop');
+  var buttonReset = document.getElementById('button-reset');
+  
+  var Interval;
+  buttonStart.onclick = function() {
+    clearInterval(Interval);
+    Interval = setInterval(tickTimer, 10);
+  }
+  buttonStop.onclick = function() {
+    clearInterval(Interval);
+  }
+  buttonReset.onclick = function() {
+    clearInterval(Interval);
+    tens = 0;
+  	seconds = 0;
+    minutes = 0;
+    drawTimer();
+  }
+  
+  function drawTimer() {
+    appendTens.innerHTML = String(tens).padStart(2, '0');
+    appendSeconds.innerHTML = String(seconds).padStart(2, '0');
+    appendMinutes.innerHTML = String(minutes).padStart(2, '0');
+  }
+  
+  function tickTimer() {
+    tens++;
+    if (tens > 99) {
+      seconds++;
+      tens = 0;
+    }
+    if (seconds > 59) {
+      minutes++;
+      seconds = 0;
+    }
+    drawTimer();
+  }
+  
+  drawTimer();
+}
+    </script>
+  </head>
+  <body>
+    <div class="wrapper">
+      <h1>Stopwatch</h1>
+      <p><span id="minutes">00</span>:<span id="seconds">00</span>:<span id="tens">00</span></p>
+      <button id="button-start">Start</button>
+      <button id="button-stop">Stop</button>
+      <button id="button-reset">Reset</button>
+    </div>
+  </body>
+</html>
