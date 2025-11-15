@@ -10,16 +10,17 @@ const averageN = 5;
 
 var db;
 window.onload = function () {
-  const request = window.indexedDB.open('timer', 4);
+  const request = window.indexedDB.open('timer', 5);
   request.onsuccess = (event) => {
     db = request.result;
     setupTimer(request.result);
   };
   request.onupgradeneeded = (event) => {
     let db = request.result;
-    if (!db.objectStoreNames.contains('timers')) {
-      db.createObjectStore('timers');
+    if (db.objectStoreNames.contains('timers')) {
+      db.deleteObjectStore('timers');
     }
+    db.createObjectStore('timers');
   };
 };
 
@@ -83,7 +84,7 @@ function setupTimer(db) {
       let existing = timers.get(id);
       existing.onsuccess = function() {
 	let times = existing.result || [];
-	times.push(time);
+	times.push({duration: time, timestamp: new Date()});
 	timers.put(times, id).onsuccess = function() {
 	  console.log(times);
 	};
@@ -98,7 +99,7 @@ function setupTimer(db) {
 	let times = existing.result || [];
 	let sum = new Time();
 	for (var i = Math.max(0, times.length-averageN-1); i < times.length; i++) {
-	  sum.add(times[i]);
+	  sum.add(times[i].duration);
 	}
 	let avg = new Time(sum.milliseconds() / times.length);
 	targetTime = avg;
