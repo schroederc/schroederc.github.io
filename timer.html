@@ -64,6 +64,14 @@ class Time {
   }
 }
 
+function calculateTarget(times) {
+  let sum = new Time();
+  for (var i = Math.max(0, times.length-averageN-1); i < times.length; i++) {
+    sum.add(times[i].duration);
+  }
+  return new Time(sum.milliseconds() / times.length);
+}
+
 function setupTimer(db) {
   var id = 'default';
   var time = new Time();
@@ -102,14 +110,7 @@ function setupTimer(db) {
       let existing = timers.get(id);
       existing.onsuccess = function() {
 	let times = existing.result || [];
-	let sum = new Time();
-	for (var i = Math.max(0, times.length-averageN-1); i < times.length; i++) {
-	  sum.add(times[i].duration);
-	}
-	let avg = new Time(sum.milliseconds() / times.length);
-	targetTime = avg;
-	console.log("Target time:", targetTime);
-
+	targetTime = calculateTarget(times);
 	buttonStartStop.innerText = 'Stop';
 	time = new Time();
 	drawTimer();
@@ -142,6 +143,9 @@ function setupTimer(db) {
 	  timeToday.add(t.duration);
 	}
       }
+      let target = calculateTarget(times);
+      var targetEl = document.getElementById('target');
+      targetEl.innerText = target.toString();
 
       var timeTodayEl = document.getElementById('today');
       timeTodayEl.innerText = timeToday.toString();
@@ -191,6 +195,7 @@ function beep() {
       <p><span id="minutes">00</span>:<span id="seconds">00</span>:<span id="tens">00</span></p>
       <button id="button-startstop">Start</button>
       <br />
+      <p><b>Target:</b> <span id="target">00:00:00</span></p>
       <p><b>Total time today:</b> <span id="today">00:00:00</span></p>
       <br />
       <button id="button-reset">Reset</button>
