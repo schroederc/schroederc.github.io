@@ -65,11 +65,14 @@ class Time {
 }
 
 function calculateTarget(times) {
+  if (times.length === 0) {
+    return new Time();
+  }
   let sum = new Time();
   for (var i = Math.max(0, times.length-averageN-1); i < times.length; i++) {
     sum.add(times[i].duration);
   }
-  return new Time(sum.milliseconds() / times.length);
+  return new Time(sum.milliseconds() / Math.min(times.length, averageN));
 }
 
 function setupTimer(db) {
@@ -98,7 +101,6 @@ function setupTimer(db) {
 	let times = existing.result || [];
 	times.push({duration: time, timestamp: new Date()});
 	timers.put(times, id).onsuccess = function() {
-	  console.log(times);
 	  updateTimeToday();
 	};
       };
@@ -123,11 +125,13 @@ function setupTimer(db) {
     Interval = null;
     time = new Time();
     pastTarget = false;
-    drawTimer();
 
     let trans = db.transaction('timers', 'readwrite');
     let timers = trans.objectStore('timers');
     timers.put([], id);
+
+    drawTimer();
+    updateTimeToday();
   }
 
   function updateTimeToday() {
